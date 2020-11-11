@@ -2,9 +2,7 @@ import socket                    # module to establish connection
 import tkinter as tk             # module to create GUI
 import time                      # module for time funcs such as .sleep()
 import random
-from func_timeout import func_timeout, FunctionTimedOut
-
-
+# Start of program
 def calculateChecksum(packetData):
     checksumTotal = 0
     dataLength = len(packetData)
@@ -77,40 +75,20 @@ def transmitFile(hostAddress, fileName):
         madePacket = makePacket(data, seqNumber)  #make the packet we need to send
         socketVar.send(madePacket)  #send it
 
-        try:
-            # receive an ack from the server
-            ackFromServer = func_timeout(5, socketVar.recv(3))
-            receivedAck = int(ackFromServer.decode())
+        #receive an ack from the server
+        ackFromServer = socketVar.recv(3)
+        receivedAck = int(ackFromServer.decode())
 
-            #decode the ack
-            if (receivedAck == 110) or (receivedAck == 101) or (receivedAck == 11) or (receivedAck == 111):
-                decodedAck = 1
-            else:
-                decodedAck = 0
+        #decode the ack
+        if (receivedAck == 110) or (receivedAck == 101) or (receivedAck == 11) or (receivedAck == 111):
+            decodedAck = 1
+        else:
+            decodedAck = 0
 
-            #if the received ack does not match the sent sequence number, retransmit and repeat until they do.
-            while decodedAck != seqNumber:
-                retransmitError_string = f"Retransmitting packet #{x} to the server..."
-                print(retransmitError_string)
-                madePacket = makePacket(data, seqNumber)
-                socketVar.send(madePacket)
-
-                ackFromServer = socketVar.recv(3)
-                receivedAck = int(ackFromServer.decode())
-                if (receivedAck == 110) or (receivedAck == 101) or (receivedAck == 11) or (receivedAck == 111):
-                    decodedAck = 1
-                else:
-                    decodedAck = 0
-
-            #flip the sequence number
-            seqNumber = not seqNumber
-
-            # timeout after the fstring to set up for the acks
-            socketVar.settimeout(15.0)
-        # this is jus for now i just wanted to put some code in before edits come in
-        except FunctionTimedOut:
-            timeout_string = f"Timed out! Retransmitting packet #{x} to the server..."
-            print(timeout_string)
+        #if the received ack does not match the sent sequence number, retransmit and repeat until they do.
+        while decodedAck != seqNumber:
+            retransmitError_string = f"Retransmitting packet #{x} to the server..."
+            print(retransmitError_string)
             madePacket = makePacket(data, seqNumber)
             socketVar.send(madePacket)
 
@@ -121,12 +99,11 @@ def transmitFile(hostAddress, fileName):
             else:
                 decodedAck = 0
 
-            # flip the sequence number
+        #flip the sequence number
         seqNumber = not seqNumber
 
         # timeout after the fstring to set up for the acks
         socketVar.settimeout(15.0)
-
 
     fileToSend.close()
 
