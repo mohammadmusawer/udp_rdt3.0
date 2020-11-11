@@ -107,7 +107,7 @@ def transmitFile(hostAddress, fileName):
 
             # timeout after the fstring to set up for the acks
             socketVar.settimeout(15.0)
-
+        # this is jus for now i just wanted to put some code in before edits come in
         except FunctionTimedOut:
             timeout_string = f"Timed out! Retransmitting packet #{x} to the server..."
             print(timeout_string)
