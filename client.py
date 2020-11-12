@@ -73,7 +73,13 @@ def transmitFile(hostAddress, fileName):
 
         data = fileToSend.read(1024)  #read data from the file
         madePacket = makePacket(data, seqNumber)  #make the packet we need to send
-        socketVar.send(madePacket)  #send it
+
+        packetLossRate = 0 #% of packets that are lost (not transmitted)
+        packetLossCalc = random.randint(0,99)
+        if packetLossCalc < packetLossRate:
+            #do nothing
+        else:
+            socketVar.send(madePacket)  #send the packet
 
         #receive an ack from the server
         ackFromServer = socketVar.recv(3)
