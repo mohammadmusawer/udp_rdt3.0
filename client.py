@@ -76,10 +76,10 @@ def transmitFile(hostAddress, fileName):
 
         packetLossRate = 0 #% of packets that are lost (not transmitted)
         packetLossCalc = random.randint(0,99)
-        if packetLossCalc < packetLossRate:
-            #do nothing
-        else:
-            socketVar.send(madePacket)  #send the packet
+        if packetLossCalc > packetLossRate:
+            socketVar.send(encodedPositiveAck)
+
+
 
         #receive an ack from the server
         ackFromServer = socketVar.recv(3)
