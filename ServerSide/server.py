@@ -1,5 +1,5 @@
 import socket  # module to establish connection
-
+import random
 
 # initializes the socket obj, hostname and port and binds it to the server
 socketVar = socket.socket()
@@ -20,6 +20,32 @@ def calculateChecksum(packetData):
     checksum = 255 - checksumInverse
     return int(checksum)
 
+def sendAck(seqNumber, connection):
+    #Creates, encodes, and sends an ack. Also implements corruption and packet loss
+    packetLossRate = 0
+
+    ack = str(seqNumber) + str(seqNumber) + str(seqNumber)
+    encodedAck = ack.encode()
+
+    packetLossCalc = random.randint(0, 99)
+    if packetLossCalc >= packetLossRate:
+        connection.send(encodedAck)
+    else:
+        print("Ack failed to transmit")
+
+def receivePacket(connection):
+    #not fully implemented. Needs to retransmit last ack
+    packetReceivedBool = False
+
+    while packetReceivedBool == False:
+        try:
+            socketVar.settimeout(0.05)
+            receivedPacket = connection.recv(1033)
+            packetReceivedBool = True
+        except socket.timeout:
+            print("Timeout detected. Retransmitting last ack")
+
+    return receivedPacket
 # loops to accept the incoming connection and file being sent from the client
 while True:
     print("Waiting for connection...")
@@ -56,21 +82,14 @@ while True:
             if(calcChecksum == rcvdChecksum):
                #if the checksums matched, send an ack and write the data
                 file.write(rcvdData)
-                positiveAck = str(rcvdSeqNumber) + str(rcvdSeqNumber) + str(rcvdSeqNumber)
-                encodedPositiveAck = positiveAck.encode()
-                connection.send(encodedPositiveAck)
+                sendAck(rcvdSeqNumber, connection)
                 break
             else:
                 #if they dont, send a nack and receive a new packet. Repeat until everything is fine
-                if rcvdSeqNumber == 1:
-                    rcvdSeqNumber = 0
-                else:
-                    rcvdSeqNumber = 1
-                negativeAck = str(rcvdSeqNumber) + str(rcvdSeqNumber) + str(rcvdSeqNumber)
-                encodedNegativeAck = negativeAck.encode()
-                connection.send(encodedNegativeAck)
+                sendAck(rcvdSeqNumber ^ 1, connection)
 
-               #receive a new packet
+
+                #receive a new packet
                 errorDeteced_string = f"Receiving retransmitted packet #{x} from client..."
                 print(errorDeteced_string)
 

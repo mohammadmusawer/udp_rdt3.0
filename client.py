@@ -2,47 +2,87 @@ import socket                    # module to establish connection
 import tkinter as tk             # module to create GUI
 import time                      # module for time funcs such as .sleep()
 import random
-# Start of program
+
 def calculateChecksum(packetData):
     checksumTotal = 0
     dataLength = len(packetData)
+
     for x in range(0, dataLength):
         currByte = packetData[-x]
         checksumTotal += currByte
+
     checksumInverse = checksumTotal % 256
     checksum = 255 - checksumInverse
+
     return int(checksum)
 
 def corruptPacket(packetData):
     #corrupts data by generating a random number and xoring it with the data
+
     corruption = random.randint(0, pow(2, 1024))
     tempData = int.from_bytes(packetData, "big")
     tempCorrupted = tempData ^ corruption
     corruptedData = tempCorrupted.to_bytes(1024, "big")
+
     return corruptedData
 
-def makePacket(packetData, seqNumber):
-    #takes the data and seq number and converts it into a packet, including checksum.
-    #also encodes the payload as well
-    dataChecksum = calculateChecksum(packetData)
+def sendPacket(packetData, seqNumber, socketVar, x):
+    #takes the data and seq number and converts it into a packet, including checksum, and encodes it
     errorRate = 0  #percentage of packets that get corrupted
+    packetLossRate = 0 #percentage of packets lost in transit (simulated as not being sent)
+    dataChecksum = calculateChecksum(packetData)
+
+    #Potentially corrupt the packet
     errorCalc = random.randint(0, 99)
     if errorCalc < errorRate:
         packetData = corruptPacket(packetData)
-    payload = seqNumber.to_bytes(1,"big") + dataChecksum.to_bytes(1,"big") + packetData
-    return payload
+
+    madePacket = seqNumber.to_bytes(1,"big") + dataChecksum.to_bytes(1,"big") + packetData
+
+    packetLossCalc = random.randint(0, 99)
+    if packetLossCalc >= packetLossRate:
+        socketVar.send(madePacket)
+    else:
+        print("Packet " + str(x) + " failed to transmit.")
+
+def receiveAck(socketVar, data, seqNumber, x):
+    #receives an ack from the server. Includes sequence number checking and timeouts.
+    ackReceivedBool = False
+
+    while ackReceivedBool == False:
+        try:
+            socketVar.settimeout(0.05)
+            receivedAck = socketVar.recv(3)
+            ackReceivedBool = True
+        except socket.timeout:
+            print("Timeout detected. Retransmitting packet " + str(x))
+            sendPacket(data,seqNumber, socketVar, x)
+
+    #process the ack to determine the seq number received
+    if (receivedAck == 110) or (receivedAck == 101) or (receivedAck == 11) or (receivedAck == 111):
+        decodedAck = 1
+    else:
+        decodedAck = 0
+
+    print("Expected and received sequence numbers. " + str(seqNumber) + " " + str(decodedAck))
+
+    if decodedAck != seqNumber:
+        retransmitError_string = f"Sequence number mismatch. Retransmitting packet {x} to the server..."
+        print(retransmitError_string)
+        sendPacket(data, seqNumber, socketVar, x)
+        receiveAck(socketVar, data, seqNumber, x)
 
 
 def transmitFile(hostAddress, fileName):
-    start = time.time()
     # function to transmit the file. Contains the code copy/pasted from phase1
     # takes as input the host address to send the file to and the name for the file upon arrival
+
+    start = time.time() #Start time of sending the file. Used to calculate time to transmit
 
     # initialization of the object and connects it to the port and host address
     socketVar = socket.socket()
     port = 8090
     socketVar.connect((hostAddress, port))
-
 
     # open file in read-binary
     fileToSend = open(fileName, 'rb')
@@ -66,20 +106,14 @@ def transmitFile(hostAddress, fileName):
 
     seqNumber = 0  #initialize the sequence number
 
+
     # loop to keep sending packets and prints the packet number that is being sent
     for x in range(1, numOfPackets + 1):
-        numOfPacketsSend_String = f"Sending packet #{x} to the server..."
+        numOfPacketsSend_String = f"Sending packet #{x} to the server with sequence {seqNumber}"
         print(numOfPacketsSend_String)
 
         data = fileToSend.read(1024)  #read data from the file
-        madePacket = makePacket(data, seqNumber)  #make the packet we need to send
-
-        packetLossRate = 0 #% of packets that are lost (not transmitted)
-        packetLossCalc = random.randint(0,99)
-        if packetLossCalc > packetLossRate:
-            socketVar.send(encodedPositiveAck)
-
-
+        sendPacket(data, seqNumber, socketVar, x)
 
         #receive an ack from the server
         ackFromServer = socketVar.recv(3)
@@ -95,8 +129,7 @@ def transmitFile(hostAddress, fileName):
         while decodedAck != seqNumber:
             retransmitError_string = f"Retransmitting packet #{x} to the server..."
             print(retransmitError_string)
-            madePacket = makePacket(data, seqNumber)
-            socketVar.send(madePacket)
+            sendPacket(data, seqNumber, socketVar)
 
             ackFromServer = socketVar.recv(3)
             receivedAck = int(ackFromServer.decode())
@@ -106,10 +139,8 @@ def transmitFile(hostAddress, fileName):
                 decodedAck = 0
 
         #flip the sequence number
-        seqNumber = not seqNumber
+        seqNumber = seqNumber ^ 1
 
-        # timeout after the fstring to set up for the acks
-        socketVar.settimeout(15.0)
 
     fileToSend.close()
 
