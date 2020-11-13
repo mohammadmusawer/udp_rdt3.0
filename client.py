@@ -28,8 +28,8 @@ def corruptPacket(packetData):
 
 def sendPacket(packetData, seqNumber, socketVar, x):
     #takes the data and seq number and converts it into a packet, including checksum, and encodes it
-    errorRate = 10  #percentage of packets that get corrupted
-    packetLossRate = 0 #percentage of packets lost in transit (simulated as not being sent)
+    errorRate = 0  #percentage of packets that get corrupted
+    packetLossRate = 10 #percentage of packets lost in transit (simulated as not being sent)
     dataChecksum = calculateChecksum(packetData)
 
     #Potentially corrupt the packet
@@ -55,7 +55,10 @@ def receiveAck(socketVar, data, seqNumber, x):
         except socket.timeout:
             print("Timeout detected. Retransmitting packet " + str(x))
             sendPacket(data,seqNumber, socketVar, x)
-
+    print(receivedAck)
+    receivedAck = int(receivedAck.decode())
+    print(receivedAck)
+    print(type(receivedAck))
     #process the ack to determine the seq number received
     if (receivedAck == 110) or (receivedAck == 101) or (receivedAck == 11) or (receivedAck == 111):
         decodedAck = 1
@@ -113,28 +116,7 @@ def transmitFile(hostAddress, fileName):
         data = fileToSend.read(1024)  #read data from the file
         sendPacket(data, seqNumber, socketVar, x)
 
-        #receive an ack from the server
-        ackFromServer = socketVar.recv(3)
-        receivedAck = int(ackFromServer.decode())
-
-        #decode the ack
-        if (receivedAck == 110) or (receivedAck == 101) or (receivedAck == 11) or (receivedAck == 111):
-            decodedAck = 1
-        else:
-            decodedAck = 0
-
-        #if the received ack does not match the sent sequence number, retransmit and repeat until they do.
-        while decodedAck != seqNumber:
-            retransmitError_string = f"Retransmitting packet #{x} to the server..."
-            print(retransmitError_string)
-            sendPacket(data, seqNumber, socketVar,x)
-
-            ackFromServer = socketVar.recv(3)
-            receivedAck = int(ackFromServer.decode())
-            if (receivedAck == 110) or (receivedAck == 101) or (receivedAck == 11) or (receivedAck == 111):
-                decodedAck = 1
-            else:
-                decodedAck = 0
+        receiveAck(socketVar,data,seqNumber,x)
 
         #flip the sequence number
         seqNumber = seqNumber ^ 1
