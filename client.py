@@ -29,7 +29,7 @@ def corruptPacket(packetData):
 def sendPacket(packetData, seqNumber, socketVar, x):
     #takes the data and seq number and converts it into a packet, including checksum, and encodes it
     errorRate = 0  #percentage of packets that get corrupted
-    packetLossRate = 10 #percentage of packets lost in transit (simulated as not being sent)
+    packetLossRate = 0 #percentage of packets lost in transit (simulated as not being sent)
     dataChecksum = calculateChecksum(packetData)
 
     #Potentially corrupt the packet
@@ -50,22 +50,20 @@ def receiveAck(socketVar, data, seqNumber, x):
     while ackReceivedBool == False:
         try:
             socketVar.settimeout(0.05)
-            receivedAck = socketVar.recv(3)
+            receivedAck = socketVar.recv(24)
             ackReceivedBool = True
         except socket.timeout:
             print("Timeout detected. Retransmitting packet " + str(x))
             sendPacket(data,seqNumber, socketVar, x)
-    print(receivedAck)
     receivedAck = int(receivedAck.decode())
-    print(receivedAck)
-    print(type(receivedAck))
-    #process the ack to determine the seq number received
-    if (receivedAck == 110) or (receivedAck == 101) or (receivedAck == 11) or (receivedAck == 111):
-        decodedAck = 1
-    else:
-        decodedAck = 0
 
-    print("Expected and received sequence numbers. " + str(seqNumber) + " " + str(decodedAck))
+    #process the ack to determine the seq number received
+    if receivedAck == 111111111111111111111111:
+        decodedAck = 1
+    elif receivedAck == 0:
+        decodedAck = 0
+    else:
+        decodedAck = 2
 
     if decodedAck != seqNumber:
         retransmitError_string = f"Sequence number mismatch. Retransmitting packet {x} to the server..."

@@ -25,9 +25,15 @@ def calculateChecksum(packetData):
 
 def sendAck(seqNumber, connection):
     #Creates, encodes, and sends an ack. Also implements corruption and packet loss
-    packetLossRate = 0
+    packetLossRate = 10
+    bitLossRate = 10
 
     ack = str(seqNumber) + str(seqNumber) + str(seqNumber)
+    ack = ack + ack + ack + ack + ack + ack + ack + ack
+    bitLossCalc = random.randint(0,99)
+    if bitLossCalc < bitLossRate:
+        corruption = random.randint(0, pow(8,8))
+        ack = str(int(ack) ^ corruption)
     encodedAck = ack.encode()
 
     packetLossCalc = random.randint(0, 99)
@@ -36,19 +42,6 @@ def sendAck(seqNumber, connection):
     else:
         print("Ack failed to transmit")
 
-def receivePacket(connection):
-    #not fully implemented. Needs to retransmit last ack
-    packetReceivedBool = False
-
-    while packetReceivedBool == False:
-        try:
-            socketVar.settimeout(0.05)
-            receivedPacket = connection.recv(1033)
-            packetReceivedBool = True
-        except socket.timeout:
-            print("Timeout detected. Retransmitting last ack")
-
-    return receivedPacket
 # loops to accept the incoming connection and file being sent from the client
 while True:
     print("Waiting for connection...")
@@ -66,6 +59,7 @@ while True:
 
     # open the file in write-binary
     file = open(fileName, 'wb')
+    expectedSeqNumber = 0
 
     # loops to keep receiving packets and prints the packets being received from the client
     for x in range(1, numOfPackets + 1):
@@ -82,14 +76,14 @@ while True:
         calcChecksum = calculateChecksum(rcvdData)
 
         while True:
-            if(calcChecksum == rcvdChecksum):
+            if(calcChecksum == rcvdChecksum) and (expectedSeqNumber == rcvdSeqNumber):
                #if the checksums matched, send an ack and write the data
                 file.write(rcvdData)
                 sendAck(rcvdSeqNumber, connection)
                 break
             else:
                 #if they dont, send a nack and receive a new packet. Repeat until everything is fine
-                sendAck(rcvdSeqNumber ^ 1, connection)
+                sendAck(expectedSeqNumber ^ 1, connection)
 
 
                 #receive a new packet
@@ -99,10 +93,9 @@ while True:
                 rcvdPacket = connection.recv(1033)
                 rcvdSeqNumber = rcvdPacket[0]
                 rcvdChecksum = int.from_bytes(rcvdPacket[1:3], "big")
-                print(rcvdChecksum)
                 rcvdData = rcvdPacket[3:]
                 calcChecksum = calculateChecksum(rcvdData)
-
+        expectedSeqNumber ^= 1
     connection.close()
     file.close()
 
