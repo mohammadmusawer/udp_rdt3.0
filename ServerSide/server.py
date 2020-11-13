@@ -13,11 +13,14 @@ print(hostName)
 def calculateChecksum(packetData):
     checksumTotal = 0
     dataLength = len(packetData)
-    for x in range(0,dataLength):
+
+    for x in range(0, dataLength):
         currByte = packetData[-x]
         checksumTotal += currByte
-    checksumInverse = checksumTotal % 256
-    checksum = 255 - checksumInverse
+
+    checksumInverse = checksumTotal % 65536
+    checksum = 65535 - checksumInverse
+
     return int(checksum)
 
 def sendAck(seqNumber, connection):
@@ -72,8 +75,8 @@ while True:
        #receive the packet and extract information from it
         rcvdPacket = connection.recv(1033)
         rcvdSeqNumber = rcvdPacket[0]
-        rcvdChecksum = rcvdPacket[1]
-        rcvdData = rcvdPacket[2:]
+        rcvdChecksum = int.from_bytes(rcvdPacket[1:3], "big")
+        rcvdData = rcvdPacket[3:]
 
         #determine if the packet was received properly via checksum. If yes, send ack, else send nack.
         calcChecksum = calculateChecksum(rcvdData)
@@ -95,8 +98,9 @@ while True:
 
                 rcvdPacket = connection.recv(1033)
                 rcvdSeqNumber = rcvdPacket[0]
-                rcvdChecksum = rcvdPacket[1]
-                rcvdData = rcvdPacket[2:]
+                rcvdChecksum = int.from_bytes(rcvdPacket[1:3], "big")
+                print(rcvdChecksum)
+                rcvdData = rcvdPacket[3:]
                 calcChecksum = calculateChecksum(rcvdData)
 
     connection.close()

@@ -11,8 +11,8 @@ def calculateChecksum(packetData):
         currByte = packetData[-x]
         checksumTotal += currByte
 
-    checksumInverse = checksumTotal % 256
-    checksum = 255 - checksumInverse
+    checksumInverse = checksumTotal % 65536
+    checksum = 65535 - checksumInverse
 
     return int(checksum)
 
@@ -28,7 +28,7 @@ def corruptPacket(packetData):
 
 def sendPacket(packetData, seqNumber, socketVar, x):
     #takes the data and seq number and converts it into a packet, including checksum, and encodes it
-    errorRate = 0  #percentage of packets that get corrupted
+    errorRate = 10  #percentage of packets that get corrupted
     packetLossRate = 0 #percentage of packets lost in transit (simulated as not being sent)
     dataChecksum = calculateChecksum(packetData)
 
@@ -36,9 +36,7 @@ def sendPacket(packetData, seqNumber, socketVar, x):
     errorCalc = random.randint(0, 99)
     if errorCalc < errorRate:
         packetData = corruptPacket(packetData)
-
-    madePacket = seqNumber.to_bytes(1,"big") + dataChecksum.to_bytes(1,"big") + packetData
-
+    madePacket = seqNumber.to_bytes(1,"big") + dataChecksum.to_bytes(2,"big") + packetData
     packetLossCalc = random.randint(0, 99)
     if packetLossCalc >= packetLossRate:
         socketVar.send(madePacket)
@@ -129,7 +127,7 @@ def transmitFile(hostAddress, fileName):
         while decodedAck != seqNumber:
             retransmitError_string = f"Retransmitting packet #{x} to the server..."
             print(retransmitError_string)
-            sendPacket(data, seqNumber, socketVar)
+            sendPacket(data, seqNumber, socketVar,x)
 
             ackFromServer = socketVar.recv(3)
             receivedAck = int(ackFromServer.decode())
